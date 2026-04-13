@@ -1,0 +1,136 @@
+# ============================================================
+#  LAB 3 — Complete Commands Guide
+# ============================================================
+
+
+# ===========================================================
+# PART 1 — DNS
+# ===========================================================
+
+# ── Apply the manifests ─────────────────────────────────────
+kubectl apply -f lab3-part1-dns.yaml
+
+# Verify namespace, deployment, pods, and service
+kubectl get all -n iti
+
+
+# ── Step d: List the SRV record & verify DNS resolution ─────
+#
+# SRV record format for a K8s service:
+#   _<port-name>._<protocol>.<service>.<namespace>.svc.cluster.local
+#
+# Since we didn't name the port, use the port number directly.
+# The full DNS domain of the "web" service in "iti" namespace is:
+#
+#   web.iti46.svc.cluster.local
+#
+# To query the SRV record, run a temporary DNS lookup pod:
+
+kubectl run dns-test --image=busybox:1.28 --rm -it --restart=Never -- \
+  nslookup -type=SRV _http._tcp.web.iti.svc.cluster.local
+
+# If the port has no name, query the service A record to confirm it resolves:
+kubectl run dns-test --image=busybox:1.28 --rm -it --restart=Never -- \
+  nslookup web.iti.svc.cluster.local
+
+# Expected output example:
+#   Server:    10.96.0.10
+#   Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+#   Name:      web.iti.svc.cluster.local
+#   Address 1: 10.100.x.x   ← ClusterIP of the service
+
+
+# ── Step e: Test pod in default namespace — reach service via domain ──
+
+# The curl-test pod is already defined in the YAML (namespace: default).
+# Wait for it to be Running:
+kubectl get pod curl-test
+
+# Exec into the pod:
+kubectl exec -it curl-test -- sh
+
+# Inside the pod, reach the web service using its full DNS name:
+curl http://web.iti.svc.cluster.local:5000
+
+# You should see the nginx welcome page HTML.
+# Exit the pod shell:
+exit
+
+
+# ===========================================================
+# PART 2 — Ingress and Services
+# ===========================================================
+
+# ── Step a & b: Apply namespaces and deployments ────────────
+kubectl apply -f lab3-part2-ingress.yaml
+
+# Verify
+kubectl get deployments -n world
+kubectl get pods -n world
+
+
+# ── Step c: Expose services using kubectl expose ────────────
+kubectl expose deployment africa \
+  --namespace=world \
+  --type=ClusterIP \
+  --port=8888 \
+  --target-port=80 \
+  --name=africa
+
+kubectl expose deployment europe \
+  --namespace=world \
+  --type=ClusterIP \
+  --port=8888 \
+  --target-port=80 \
+  --name=europe
+
+# Verify services
+kubectl get svc -n world
+
+
+# ── Step d: Apply Ingress ───────────────────────────────────
+# The Ingress is already in lab3-part2-ingress.yaml and was applied above.
+# Verify it was created:
+kubectl get ingress -n world
+kubectl describe ingress world -n world
+
+# Get the Node IP (needed for /etc/hosts):
+kubectl get nodes -o wide
+# Note the INTERNAL-IP or EXTERNAL-IP of your node.
+
+# Add the domain to /etc/hosts on your LOCAL machine (or the node):
+# Replace <NODE_IP> with the actual IP from above:
+#
+#   echo "<192.168.146.141>  world.universe.mine" | sudo tee -a /etc/hosts
+#
+# Example:
+echo "192.168.146.141  world.universe.mine" | sudo tee -a /etc/hosts
+
+# Verify /etc/hosts entry:
+cat /etc/hosts | grep world.universe.mine
+
+
+# ── Test the Ingress routes ─────────────────────────────────
+curl http://world.universe.mine/europe/
+curl http://world.universe.mine/africa/
+
+# You should see the HTML page from each respective app.
+
+
+# ===========================================================
+# QUICK REFERENCE — DNS Names
+# ===========================================================
+#
+# Service FQDN format:
+#   <service-name>.<namespace>.svc.cluster.local
+#
+# Part 1 service:
+#   web.iti.svc.cluster.local          (port 5000)
+#
+# Part 2 services:
+#   africa.world.svc.cluster.local     (port 8888)
+#   europe.world.svc.cluster.local     (port 8888)
+#
+# SRV record format:
+#   _<port-name>._tcp.<service>.<namespace>.svc.cluster.local
+# ===========================================================

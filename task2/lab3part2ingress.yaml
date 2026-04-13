@@ -1,0 +1,154 @@
+# ============================================================
+# LAB 3 - PART 2: INGRESS + SERVICES (PRODUCTION CLEAN)
+# Namespace: world
+# ============================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: iti46
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: world
+
+# ============================================================
+# AFRICA DEPLOYMENT
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: africa
+  namespace: world
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: africa
+  template:
+    metadata:
+      labels:
+        app: africa
+    spec:
+      containers:
+        - name: africa
+          image: husseingalal/africa:latest
+          ports:
+            - containerPort: 80
+
+# ============================================================
+# EUROPE DEPLOYMENT
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: europe
+  namespace: world
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: europe
+  template:
+    metadata:
+      labels:
+        app: europe
+    spec:
+      containers:
+        - name: europe
+          image: husseingalal/europe:latest
+          ports:
+            - containerPort: 80
+
+# ============================================================
+# AFRICA SERVICE
+# ============================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: africa
+  namespace: world
+spec:
+  type: ClusterIP
+  selector:
+    app: africa
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+# ============================================================
+# EUROPE SERVICE
+# ============================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: europe
+  namespace: world
+spec:
+  type: ClusterIP
+  selector:
+    app: europe
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+# ============================================================
+# MIDDLEWARES (STRIP PREFIX)
+# ============================================================
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-africa
+  namespace: world
+spec:
+  stripPrefix:
+    prefixes:
+      - /africa
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-europe
+  namespace: world
+spec:
+  stripPrefix:
+    prefixes:
+      - /europe
+
+# ============================================================
+# INGRESSROUTE (TRAEFIK)
+# ============================================================
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: world
+  namespace: world
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`world.universe.mine`) && PathPrefix(`/africa`)
+      kind: Rule
+      middlewares:
+        - name: strip-africa
+      services:
+        - name: africa
+          port: http
+
+    - match: Host(`world.universe.mine`) && PathPrefix(`/europe`)
+      kind: Rule
+      middlewares:
+        - name: strip-europe
+      services:
+        - name: europe
+          port: http
