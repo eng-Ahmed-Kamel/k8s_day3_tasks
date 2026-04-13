@@ -1,8 +1,3 @@
-# ============================================================
-# LAB 3 - PART 2: INGRESS + SERVICES (PRODUCTION CLEAN)
-# Namespace: world
-# ============================================================
-
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -106,9 +101,8 @@ kind: Ingress
 metadata:
   name: world-ingress
   namespace: world
-  annotations:
-    ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: traefik
   rules:
   - host: world.universe.mine
     http:
