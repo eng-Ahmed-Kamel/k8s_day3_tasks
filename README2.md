@@ -256,7 +256,9 @@ kubectl expose deployment europe \
 # Screenshots
 
 Add screenshots for the following commands:
+---
 ![op](op-task2.png)
+---
 ### Deployments
 ```bash
 kubectl get deployments -A
