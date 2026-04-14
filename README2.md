@@ -257,7 +257,7 @@ kubectl expose deployment europe \
 
 Add screenshots for the following commands:
 ---
-![op](op-task2.png)
+![op](task2/op-task2.png)
 ---
 ### Deployments
 ```bash
